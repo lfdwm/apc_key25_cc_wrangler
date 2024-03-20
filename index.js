@@ -32,36 +32,76 @@ const colors = {
   green:  75,
 };
 
-// Color map layout corresponds to the physical layout on the APC key25!
-// The key is the MIDI note ID triggered by each button.
-// The "soft keys" to the right are green regardless of chosen color.
-const color_map = {
-  32: "pink",   33: "red",    34: "red",    35: "red",    36: "red",    37: "red",    38: "red",    39: "red",         82: "red",
-  24: "dblue",  25: "dblue",  26: "red",    27: "red",    28: "red",    29: "red",    30: "red",    31: "red",         83: "red",
-  16: "lblue",  17: "red",    18: "red",    19: "red",    20: "red",    21: "red",    22: "red",    23: "red",         84: "red",
-  8:  "red",    9:  "red",    10: "red",    11: "red",    12: "red",    13: "red",    14: "red",    15: "red",         85: "red",
-  0:  "orange", 1:  "orange", 2:  "red",    3:  "red",    4:  "red",    5:  "red",    6:  "red",    7:  "red",         86: "red",
+//////// Util functions: ////////
 
-  64: "red",    65: "red",    66: "red",    67: "red",    68: "red",    69: "red",    70: "red",    71: "red",
+const toggle_note_state = (key) => {
+  note_states[key] = !note_states[key];
 };
 
-// Function may layout corresponds to the physical layout on the APC key25!
-// Each key can have a different function: CC toggle 127/0, or just MIDI toggle.
-// CC: { cc: <controller index> }
-// Key: { key: <key number or -1 for same as the one the button already maps to> } TODO: key number currently ignored cuz' i dun' use it
-const func_map = {
-  32: {key:-1}, 33: {key:-1}, 34: {key:-1}, 35: {key:-1}, 36: {key:-1}, 37: {key:-1}, 38: {key:-1}, 39: {key:-1},      82: {key:-1},
-  24: {key:-1}, 25: {key:-1}, 26: {cc: 56}, 27: {cc: 57}, 28: {cc: 58}, 29: {key:-1}, 30: {key:-1}, 31: {key:-1},      83: {key:-1},
-  16: {key:-1}, 17: {key:-1}, 18: {key:-1}, 19: {key:-1}, 20: {key:-1}, 21: {key:-1}, 22: {key:-1}, 23: {key:-1},      84: {key:-1},
-  8:  {key:-1}, 9:  {key:-1}, 10: {key:-1}, 11: {key:-1}, 12: {key:-1}, 13: {key:-1}, 14: {key:-1}, 15: {key:-1},      85: {key:-1},
-  0:  {key:-1}, 1:  {key:-1}, 2:  {key:-1}, 3:  {key:-1}, 4:  {key:-1}, 5:  {key:-1}, 6:  {key:-1}, 7:  {key:-1},      86: {key:-1},
-
-  64: {key:-1}, 65: {key:-1}, 66: {key:-1}, 67: {key:-1}, 68: {key:-1}, 69: {key:-1}, 70: {key:-1}, 71: {key:-1},
+const toggle_color = (color_out, key, color) => {
+  const velocity = note_states[key] ? color : 0;
+  console.log(`← Forwarding noteon: Note=${key}, Velocity=${velocity}, Channel=0`);
+  color_out.send('noteon', {note: key, velocity: velocity, channel: 0});
 };
+
+const toggle_cc = (cc_out, key, cc, channel = 0) => {
+  const value = note_states[key] * 127;
+  console.log(`← Forwarding CC: Controller=${cc}, Value=${value}, Channel=${channel}`);
+  cc_out.send('cc', {controller: cc, value: value, channel: channel});
+};
+
+const color_toggler = (color) =>
+  (cc_out, color_out, key) => {
+    toggle_note_state(key);
+    toggle_color(color_out, key, color);
+  };
+
+const cc_toggler = (color, cc, channel=0) =>
+  (cc_out, color_out, key) => {
+    toggle_note_state(key);
+    toggle_color(color_out, key, color);
+    toggle_cc(cc_out, key, cc, channel);
+  };
+
+//////// Key map: ////////
+
+const key_maps = {
+  
+  example: {
+    // This key map is rotated clockwise 90° to fit better on screen... Top right corner (32) corresponds to the top *left* corner on the device.
+    // Eack key position takes a function of the form (cc_out, color_out, key) => ... Note, cc controller index should prob. not overlap with knobs, i.e. 48 - 55.
+    //  ↓ Arrow-key row                   ↓ bottom row                                                                                                                   ↓ top row
+
+    64: color_toggler(colors.red),    0:  color_toggler(colors.red), 8:  color_toggler(colors.red), 16: color_toggler(colors.red),   24: color_toggler(colors.red),  32: cc_toggler(colors.pink, 56),
+    65: color_toggler(colors.red),    1:  color_toggler(colors.red), 9:  color_toggler(colors.red), 17: color_toggler(colors.red),   25: color_toggler(colors.red),  33: color_toggler(colors.red),
+    66: color_toggler(colors.red),    2:  color_toggler(colors.red), 10: color_toggler(colors.red), 18: color_toggler(colors.red),   26: color_toggler(colors.red),  34: color_toggler(colors.red),
+    67: color_toggler(colors.red),    3:  color_toggler(colors.red), 11: color_toggler(colors.red), 19: color_toggler(colors.red),   27: color_toggler(colors.red),  35: color_toggler(colors.red),
+    68: color_toggler(colors.red),    4:  color_toggler(colors.red), 12: color_toggler(colors.red), 20: color_toggler(colors.red),   28: color_toggler(colors.red),  36: color_toggler(colors.red),
+    69: color_toggler(colors.red),    5:  color_toggler(colors.red), 13: color_toggler(colors.red), 21: color_toggler(colors.red),   29: color_toggler(colors.red),  37: color_toggler(colors.red),
+    70: color_toggler(colors.red),    6:  color_toggler(colors.red), 14: color_toggler(colors.red), 22: color_toggler(colors.red),   30: color_toggler(colors.red),  38: color_toggler(colors.red),
+    71: color_toggler(colors.red),    7:  color_toggler(colors.red), 15: color_toggler(colors.red), 23: color_toggler(colors.red),   31: color_toggler(colors.red),  39: color_toggler(colors.red),
+                                                                                                     
+    /* Soft keys column → */          86: color_toggler(colors.red), 85: color_toggler(colors.red), 84: color_toggler(colors.red),   83: color_toggler(colors.red),  82: color_toggler(colors.red),
+  },
+
+  tracker1: {
+    //  ↓ Arrow-key row                   ↓ bottom row                                                                                                                   ↓ top row
+    64: color_toggler(colors.red),    0:  color_toggler(colors.orange), 8:  color_toggler(colors.green), 16: color_toggler(colors.lblue), 24: color_toggler(colors.dblue),   32: color_toggler(colors.pink),
+    65: color_toggler(colors.red),    1:  color_toggler(colors.orange), 9:  color_toggler(colors.red),   17: color_toggler(colors.red),   25: color_toggler(colors.dblue),   33: color_toggler(colors.red),
+    66: color_toggler(colors.red),    2:  color_toggler(colors.red),    10: color_toggler(colors.red),   18: color_toggler(colors.red),   26: cc_toggler(colors.dblue, 56),  34: color_toggler(colors.red),
+    67: color_toggler(colors.red),    3:  color_toggler(colors.red),    11: color_toggler(colors.red),   19: color_toggler(colors.red),   27: color_toggler(colors.red),     35: color_toggler(colors.red),
+    68: color_toggler(colors.red),    4:  color_toggler(colors.red),    12: color_toggler(colors.red),   20: color_toggler(colors.red),   28: color_toggler(colors.red),     36: color_toggler(colors.red),
+    69: color_toggler(colors.red),    5:  color_toggler(colors.red),    13: color_toggler(colors.red),   21: color_toggler(colors.red),   29: color_toggler(colors.red),     37: color_toggler(colors.red),
+    70: color_toggler(colors.red),    6:  color_toggler(colors.red),    14: color_toggler(colors.red),   22: color_toggler(colors.red),   30: color_toggler(colors.red),     38: color_toggler(colors.red),
+    71: color_toggler(colors.red),    7:  color_toggler(colors.red),    15: color_toggler(colors.red),   23: color_toggler(colors.red),   31: color_toggler(colors.red),     39: color_toggler(colors.red),
+                                                                                                          
+    /* Soft keys column → */          86: color_toggler(colors.red),    85: color_toggler(colors.red),   84: color_toggler(colors.red),   83: color_toggler(colors.red),     82: color_toggler(colors.red),
+  }
+}
 
 //////// Main method: ////////
 
-const main = (input, cc_output, color_output) => {
+const main = (input, cc_output, color_output, key_map) => {
 
   // On CC: output modified value.
   // Input is distance knob has rotated: right = dist, left = 127-dist
@@ -84,37 +124,7 @@ const main = (input, cc_output, color_output) => {
   // On noteon: toggle color, optionally trigger CC value on CC output
   input.on('noteon', (msg) => {
     console.log(`→ Incoming noteon: Note=${msg.note}, Velocity=${msg.velocity}, Channel=${msg.channel}`);
-
-    note_states[msg.note] = !note_states[msg.note];
-
-    // Toggle color:
-    let options;
-    if (note_states[msg.note]) {
-      options = {
-        note: msg.note,
-        velocity: colors[color_map[msg.note] || "red"],
-        channel: 0
-      };
-    } else {
-      options = {
-        note: msg.note,
-        velocity: 0,
-        channel: 0
-      };
-    }
-    console.log(`← Forwarding noteon: Note=${options.note}, Velocity=${options.velocity}, Channel=${options.channel}`);
-    color_output.send('noteon', options);
-
-    // Toggle CC:
-    if (func_map[msg.note].cc) {
-      console.log(`← Forwarding CC: Controller=${func_map[msg.note].cc}, Value=${note_states[msg.note] * 127}, Channel=${0}`);
-      cc_output.send('cc', {
-        controller: func_map[msg.note].cc,
-        value: note_states[msg.note] * 127,
-        channel: 0  // TODO: should prob. be configurable
-      });
-    }
-
+    key_map[msg.note](cc_output, color_output, msg.note);
     console.log();
   });
 
@@ -148,6 +158,12 @@ inquirer.prompt([
     name: 'color_output',
     message: 'Pick the "C" output device of your APC Key 25:',
     choices: outputs.concat({name: "Make virtual device instead", value: "vdev"})
+  },
+  {
+    type: 'list',
+    name: 'key_map',
+    message: 'Pick a key map:',
+    choices: Object.keys(key_maps)
   }
 ]).then((answers) => {
   let input, color_output;
@@ -166,5 +182,5 @@ inquirer.prompt([
 
   let cc_output = new easymidi.Output('APC Key25 Wrangler CC Output', true);
 
-  main(input, cc_output, color_output);
+  main(input, cc_output, color_output, key_maps[answers.key_map]);
 });
