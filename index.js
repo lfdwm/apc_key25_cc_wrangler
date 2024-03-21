@@ -75,7 +75,7 @@ const main = async (input, cc_output, color_output, key_map_name) => {
   // On noteon: toggle color, optionally trigger CC value on CC output
   input.on('noteon', (msg) => {
     console.log(`→ Incoming noteon: Note=${msg.note}, Velocity=${msg.velocity}, Channel=${msg.channel}`);
-    key_map[msg.note](cc_output, color_output, msg.note);
+    key_map[msg.note]?.call(cc_output, color_output, msg.note);
     console.log();
   });
 
