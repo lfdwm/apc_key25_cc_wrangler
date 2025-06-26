@@ -72,10 +72,16 @@ const main = async (input, cc_output, color_output, key_map_name) => {
     });
   });
 
-  // On noteon: toggle color, optionally trigger CC value on CC output
+  // On noteon and noteoff: call the note's mapped function
   input.on('noteon', (msg) => {
     console.log(`→ Incoming noteon: Note=${msg.note}, Velocity=${msg.velocity}, Channel=${msg.channel}`);
-    key_map[msg.note]?.call(key_map, cc_output, color_output, msg.note);
+    key_map[msg.note]?.call(key_map, "noteon", cc_output, color_output, msg);
+    console.log();
+  });
+
+  input.on('noteoff', (msg) => {
+    console.log(`→ Incoming noteoff: Note=${msg.note}, Velocity=${msg.velocity}, Channel=${msg.channel}`);
+    key_map[msg.note]?.call(key_map, "noteoff", cc_output, color_output, msg);
     console.log();
   });
 
